@@ -1,0 +1,31 @@
+name: Weekly CFP Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Every Monday at 9:00 AM UTC (2:00 PM Myanmar time)
+  workflow_dispatch:       # Allows you to click "Run workflow" manually anytime
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run CFP tracker
+        run: python cfp_tracker.py
+
+      - name: Upload Excel file
+        uses: actions/upload-artifact@v4
+        with:
+          name: CFP_Tracker_Myanmar
+          path: CFP_Tracker_Myanmar.xlsx
+          if-no-files-found: warn   
