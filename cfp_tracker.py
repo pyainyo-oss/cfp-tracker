@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 
 try:
     import feedparser
@@ -13,8 +13,6 @@ except ImportError:
 
 # ──────────────────────────────────────────────
 # CONFIGURATION
-# ──────────────────────────────────────────────
-# Directory လမ်းကြောင်းကို တိကျစွာ သတ်မှတ်ခြင်း
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_FILE = os.path.join(BASE_DIR, "CFP_Tracker_Myanmar.xlsx")
 SHEET_NAME = "CFPs"
