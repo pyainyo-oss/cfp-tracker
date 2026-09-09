@@ -3,6 +3,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from bs4 import BeautifulSoup
+import requests
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
