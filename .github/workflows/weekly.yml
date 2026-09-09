@@ -24,23 +24,21 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run CFP tracker
-        id: run
-        run: |
-          python cfp_tracker.py 2>&1 | tee run_log.txt
-          echo "exit_code=$?" >> $GITHUB_ENV
+        run: python cfp_tracker.py
 
       - name: Upload Excel file
         uses: actions/upload-artifact@v4
         with:
           name: CFP_Tracker_Myanmar
           path: CFP_Tracker_Myanmar.xlsx
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
-      - name: Upload run log (for debugging)
+      - name: Upload run log (if error occurs)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: run_log
           path: run_log.txt
           if-no-files-found: ignore
-          retention-days: 7   
+          retention-days: 7
