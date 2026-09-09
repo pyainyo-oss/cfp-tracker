@@ -1,13 +1,3 @@
-"""
-============================================================
- Myanmar CFP Tracker – v2.1
- Sources: MIMU, fundsforNGOs, Advance Africa, DevelopmentAid,
-          K4DM, UNFPA, US Embassy, Japan GGP, Lorcan Lovett,
-          GrantStation
- Output:  CFP_Tracker_Myanmar.xlsx
-============================================================
-"""
-
 import requests
 import re
 import os
@@ -15,7 +5,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, date
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill, Alignment  # << Alignment import လုပ်ထားကြောင်း သေချာပါစေ
 
 try:
     import feedparser
@@ -25,64 +15,47 @@ except ImportError:
 # ──────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────
-EXCEL_FILE = "CFP_Tracker_Myanmar.xlsx"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILE = os.path.join(BASE_DIR, "CFP_Tracker_Myanmar.xlsx")
 SHEET_NAME = "CFPs"
 
+# Website များ Bot မဟုတ်ကြောင်း ထင်မြင်စေရန် Browser Header မြှင့်တင်ထားခြင်း
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
 }
 
 SOURCES = [
-    # Aggregators
     {"name": "MIMU", "url": "https://themimu.info/calls-for-proposals", "type": "html"},
     {"name": "fundsforNGOs", "url": "https://www2.fundsforngos.org/tag/burmamyanmar/", "type": "html"},
     {"name": "Advance Africa", "url": "https://www.advance-africa.com/Grants-for-NGOs-in-Myanmar.html", "type": "html"},
-    {"name": "DevelopmentAid", "url": "https://www.developmentaid.org/tenders/search?locations=143", "type": "html"},
     {"name": "GrantStation", "url": "https://grantstation.com/find-grants/myanmar-burma", "type": "html"},
-
-    # Government / Embassy / UN
-    {"name": "US Embassy Burma", "url": "https://mm.usembassy.gov/grants-and-fellowships/", "type": "html"},
-    {"name": "Japan GGP", "url": "https://www.mm.emb-japan.go.jp/profile/english/ggp.htm", "type": "html"},
     {"name": "UNFPA Myanmar", "url": "https://myanmar.unfpa.org/en/call-for-submissions", "type": "html"},
-
-    # RSS Feeds
     {"name": "K4DM", "url": "https://k4dm.ca/feed/", "type": "rss"},
     {"name": "Lorcan Lovett", "url": "https://lorcanlovett.substack.com/feed", "type": "rss"},
 ]
 
-
-# ──────────────────────────────────────────────
-# UTILITIES & FETCH
-# ──────────────────────────────────────────────
-
 def fetch(url):
-    """Fetch URL content safely with error handling."""
     try:
         r = requests.get(url, headers=HEADERS, timeout=25)
         r.raise_for_status()
         return r.text
     except Exception as e:
-        print(f"   [FETCH ERROR] {url}: {e}")
+        print(f"  [ERROR] {url}: {e}")
         return ""
 
 def parse_date_safely(date_str):
-    """Try parsing various date formats safely."""
     if not date_str:
         return None
-    
-    # Common date regular expression extractors
     date_patterns = [
-        r'\d{1,2}-[A-Za-z]{3}-\d{4}',       # 09-Sep-2026
-        r'[A-Za-z]{3}\s+\d{1,2},\s*\d{4}',  # Sep 09, 2026
-        r'\d{1,2}\s+[A-Za-z]+\s+\d{4}',     # 09 September 2026
-        r'\d{4}-\d{2}-\d{2}'                # 2026-09-09
+        r'\d{1,2}-[A-Za-z]{3}-\d{4}',
+        r'[A-Za-z]{3}\s+\d{1,2},\s*\d{4}',
+        r'\d{1,2}\s+[A-Za-z]+\s+\d{4}',
+        r'\d{4}-\d{2}-\d{2}'
     ]
-    
-    clean_str = date_str.strip()
     for pattern in date_patterns:
-        m = re.search(pattern, clean_str)
+        m = re.search(pattern, date_str.strip())
         if m:
             extracted = m.group(0)
             for fmt in ["%d-%b-%Y", "%b %d, %Y", "%d %B %Y", "%Y-%m-%d"]:
@@ -93,22 +66,13 @@ def parse_date_safely(date_str):
     return None
 
 def deadline_passed(deadline_str):
-    """Check if a deadline has passed safely."""
-    parsed_date = parse_date_safely(deadline_str)
-    if parsed_date:
-        return parsed_date < date.today()
-    return False
-
-
-# ──────────────────────────────────────────────
-# PARSERS – HTML
-# ──────────────────────────────────────────────
+    parsed = parse_date_safely(deadline_str)
+    return parsed < date.today() if parsed else False
 
 def parse_mimu(html):
     entries = []
     if not html: return entries
     soup = BeautifulSoup(html, "html.parser")
-
     table = soup.find("table", class_="views-table") or soup.find("table")
     if not table: return entries
 
@@ -120,8 +84,7 @@ def parse_mimu(html):
             if not link: continue
             title = link.get_text(strip=True)
             url = link.get("href", "")
-            if not url.startswith("http"):
-                url = "https://themimu.info" + url
+            if not url.startswith("http"): url = "https://themimu.info" + url
 
             geo = cells[2].get_text(strip=True) if len(cells) > 2 else "Myanmar"
             funder = cells[3].get_text(strip=True) if len(cells) > 3 else "Unknown"
@@ -130,38 +93,6 @@ def parse_mimu(html):
             entries.append({
                 "title": title, "funder": funder, "location": geo,
                 "deadline": deadline_raw, "amount": "", "url": url, "source": "MIMU"
-            })
-        except Exception as e:
-            continue
-    return entries
-
-def parse_fundsforngos(html):
-    entries = []
-    if not html: return entries
-    soup = BeautifulSoup(html, "html.parser")
-
-    for heading in soup.find_all(["h2", "h3"]):
-        try:
-            a = heading.find("a")
-            if not a: continue
-            title = a.get_text(strip=True)
-            url = a.get("href", "")
-
-            parent = a.find_parent(["div", "article"])
-            body_text = parent.get_text() if parent else ""
-
-            if not re.search(r'myanmar|burma', title + body_text, re.I):
-                continue
-
-            m_dl = re.search(r'[Dd]eadline:?\s*([^\n\r<]+)', body_text)
-            deadline = m_dl.group(1).strip() if m_dl else ""
-
-            m_am = re.search(r'(?:USD|US\$|\$|EUR|€)\s?[\d,]+', body_text)
-            amount = m_am.group(0) if m_am else ""
-
-            entries.append({
-                "title": title, "funder": "fundsforNGOs", "location": "Myanmar",
-                "deadline": deadline, "amount": amount, "url": url, "source": "fundsforNGOs"
             })
         except Exception:
             continue
@@ -172,39 +103,15 @@ def parse_advance_africa(html):
     if not html: return entries
     soup = BeautifulSoup(html, "html.parser")
     seen = set()
-
     for a in soup.find_all("a", href=True):
         url, title = a["href"], a.get_text(strip=True)
         if not re.search(r'myanmar|burma', title, re.I) or len(title) < 12 or url in seen:
             continue
         if not url.startswith("http"): url = "https://www.advance-africa.com" + url
-        
         seen.add(url)
         entries.append({
             "title": title, "funder": "Advance Africa", "location": "Myanmar",
             "deadline": "", "amount": "", "url": url, "source": "Advance Africa"
-        })
-    return entries
-
-def parse_developmentaid(html):
-    entries = []
-    if not html: return entries
-    soup = BeautifulSoup(html, "html.parser")
-    seen = set()
-
-    for a in soup.find_all("a", href=True):
-        url, title = a["href"], a.get_text(strip=True)
-        if "/tenders/view/" not in url or len(title) < 10 or url in seen:
-            continue
-
-        parent = a.find_parent("div")
-        context = parent.get_text() if parent else ""
-        seen.add(url)
-        if not url.startswith("http"): url = "https://www.developmentaid.org" + url
-
-        entries.append({
-            "title": title, "funder": "DevelopmentAid", "location": "Myanmar",
-            "deadline": "", "amount": "", "url": url, "source": "DevelopmentAid"
         })
     return entries
 
@@ -213,7 +120,6 @@ def parse_grantstation(html):
     if not html: return entries
     soup = BeautifulSoup(html, "html.parser")
     seen = set()
-
     for a in soup.find_all("a", href=True):
         url, title = a["href"], a.get_text(strip=True)
         if not re.search(r'myanmar|burma', title, re.I) or len(title) < 12 or url in seen:
@@ -226,45 +132,10 @@ def parse_grantstation(html):
         })
     return entries
 
-def parse_us_embassy(html):
-    entries = []
-    if not html: return entries
-    soup = BeautifulSoup(html, "html.parser")
-    seen = set()
-
-    for a in soup.find_all("a", href=True):
-        url, title = a["href"], a.get_text(strip=True)
-        if not re.search(r'grant|fellowship|NOFO|call for', title, re.I) or len(title) < 10 or url in seen:
-            continue
-        if not url.startswith("http"): url = "https://mm.usembassy.gov" + url
-        seen.add(url)
-        entries.append({
-            "title": title, "funder": "US Embassy Burma", "location": "Myanmar",
-            "deadline": "", "amount": "", "url": url, "source": "US Embassy Burma"
-        })
-    return entries
-
-def parse_japan_ggp(html):
-    entries = []
-    if not html: return entries
-    soup = BeautifulSoup(html, "html.parser")
-
-    for a in soup.find_all("a", href=True):
-        url, title = a["href"], a.get_text(strip=True)
-        if not re.search(r'call|application|GGP|grant', title, re.I) or len(title) < 5:
-            continue
-        if not url.startswith("http"): url = "https://www.mm.emb-japan.go.jp" + url
-        entries.append({
-            "title": title, "funder": "Embassy of Japan (GGP)", "location": "Myanmar",
-            "deadline": "", "amount": "Up to ¥20,000,000", "url": url, "source": "Japan GGP"
-        })
-    return entries
-
 def parse_unfpa(html):
     entries = []
     if not html: return entries
     soup = BeautifulSoup(html, "html.parser")
-
     for a in soup.find_all("a", href=True):
         url, title = a["href"], a.get_text(strip=True)
         if not re.search(r'call|EOI|grant|CSO|submission|proposal', title, re.I) or len(title) < 10:
@@ -276,11 +147,6 @@ def parse_unfpa(html):
         })
     return entries
 
-
-# ──────────────────────────────────────────────
-# PARSERS – RSS
-# ──────────────────────────────────────────────
-
 def parse_rss_feed(feed_url, source_name):
     entries = []
     if feedparser:
@@ -289,20 +155,13 @@ def parse_rss_feed(feed_url, source_name):
             title = entry.get("title", "")
             link = entry.get("link", "")
             summary = entry.get("summary", "")
-            
             if not re.search(r'grant|funding|research|call|proposal|opportunity|myanmar', title + summary, re.I):
                 continue
-
             entries.append({
                 "title": title, "funder": source_name, "location": "Myanmar",
                 "deadline": "", "amount": "", "url": link, "source": source_name
             })
     return entries
-
-
-# ──────────────────────────────────────────────
-# EXCEL OUTPUT & MAIN
-# ──────────────────────────────────────────────
 
 def log_to_excel(entries, filepath):
     wb = Workbook()
@@ -346,14 +205,14 @@ def log_to_excel(entries, filepath):
 
     ws.freeze_panes = "A2"
     wb.save(filepath)
-    print(f" Saved {len(entries)} items ({open_cnt} Open, {closed_cnt} Closed) to {filepath}")
+    print(f"\n ✅ Saved {len(entries)} items ({open_cnt} Open, {closed_cnt} Closed) to {filepath}")
 
 def main():
     html_parsers = {
-        "MIMU": parse_mimu, "fundsforNGOs": parse_fundsforngos,
-        "Advance Africa": parse_advance_africa, "DevelopmentAid": parse_developmentaid,
-        "GrantStation": parse_grantstation, "US Embassy Burma": parse_us_embassy,
-        "Japan GGP": parse_japan_ggp, "UNFPA Myanmar": parse_unfpa,
+        "MIMU": parse_mimu,
+        "Advance Africa": parse_advance_africa,
+        "GrantStation": parse_grantstation,
+        "UNFPA Myanmar": parse_unfpa,
     }
 
     all_entries = []
@@ -373,7 +232,6 @@ def main():
 
         all_entries.extend(entries)
 
-    # Deduplicate
     seen, unique_entries = set(), []
     for e in all_entries:
         key = e["title"].lower().strip()[:80]
@@ -381,7 +239,6 @@ def main():
             seen.add(key)
             unique_entries.append(e)
 
-    # Safe Sort
     def sort_key(e):
         is_closed = 1 if deadline_passed(e["deadline"]) else 0
         parsed = parse_date_safely(e["deadline"])
