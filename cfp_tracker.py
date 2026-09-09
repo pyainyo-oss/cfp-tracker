@@ -1,11 +1,10 @@
-import requests
-import re
 import os
+import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, date
+from datetime import date, datetime
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment 
+from openpyxl.styles import Alignment, Font, PatternFill
 
 try:
     import feedparser
@@ -15,11 +14,11 @@ except ImportError:
 # ──────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────
+# Directory လမ်းကြောင်းကို တိကျစွာ သတ်မှတ်ခြင်း
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_FILE = os.path.join(BASE_DIR, "CFP_Tracker_Myanmar.xlsx")
 SHEET_NAME = "CFPs"
 
-# Website များ Bot မဟုတ်ကြောင်း ထင်မြင်စေရန် Browser Header မြှင့်တင်ထားခြင်း
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -55,7 +54,7 @@ def parse_date_safely(date_str):
         r'\d{4}-\d{2}-\d{2}'
     ]
     for pattern in date_patterns:
-        m = re.search(pattern, date_str.strip())
+        m = re.search(pattern, str(date_str).strip())
         if m:
             extracted = m.group(0)
             for fmt in ["%d-%b-%Y", "%b %d, %Y", "%d %B %Y", "%Y-%m-%d"]:
@@ -175,7 +174,7 @@ def log_to_excel(entries, filepath):
     for cell in ws[1]:
         cell.font = Font(bold=True, color="FFFFFF", size=11)
         cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
 
     today = date.today().strftime("%Y-%m-%d")
     open_cnt, closed_cnt = 0, 0
@@ -199,9 +198,14 @@ def log_to_excel(entries, filepath):
             status_cell.font = Font(color="9C0006")
             status_cell.fill = PatternFill("solid", fgColor="FFC7CE")
 
+    # Column Width သတ်မှတ်ခြင်း အပိုင်း ပြင်ဆင်ချက်
     for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 50)
+        col_letter = col[0].column_letter
+        if col_letter == 'H':  # URL Column ကို Width ၃၀ အသေထားခြင်း
+            ws.column_dimensions[col_letter].width = 30
+        else:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 50)
 
     ws.freeze_panes = "A2"
     wb.save(filepath)
