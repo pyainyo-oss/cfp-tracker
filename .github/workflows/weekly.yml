@@ -2,12 +2,14 @@ name: Weekly CFP Check
 
 on:
   schedule:
-    - cron: '0 9 * * 1'   # Every Monday at 9:00 AM UTC (2:00 PM Myanmar time)
-  workflow_dispatch:       # Allows you to click "Run workflow" manually anytime
+    - cron: '0 2 * * 1'   # Monday 2:00 UTC = 8:30 AM Myanmar time
+  workflow_dispatch:       # Manual trigger available
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -16,16 +18,29 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Run CFP tracker
-        run: python cfp_tracker.py
+        id: run
+        run: |
+          python cfp_tracker.py 2>&1 | tee run_log.txt
+          echo "exit_code=$?" >> $GITHUB_ENV
 
       - name: Upload Excel file
         uses: actions/upload-artifact@v4
         with:
           name: CFP_Tracker_Myanmar
           path: CFP_Tracker_Myanmar.xlsx
-          if-no-files-found: warn   
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload run log (for debugging)
+        uses: actions/upload-artifact@v4
+        with:
+          name: run_log
+          path: run_log.txt
+          if-no-files-found: ignore
+          retention-days: 7   
