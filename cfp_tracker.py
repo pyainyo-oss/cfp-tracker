@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, date
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 
 try:
     import feedparser
