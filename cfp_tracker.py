@@ -676,17 +676,17 @@ def main():
         stype = source["type"]
 
         print(f"  [{stype.upper()}] {name}...")
-
-        if stype == "rss":
-            parser = rss_parsers.get(name)
-            if parser:
-                entries = parser(url)
+        try:
+            if stype == "rss":
+                parser = rss_parsers.get(name)
+                entries = parser(url) if parser else []
             else:
-                entries = []
-        else:
-            html = fetch(url)
-            parser = html_parsers.get(name)
-            entries = parser(html) if parser else []
+                html = fetch(url)
+                parser = html_parsers.get(name)
+                entries = parser(html) if parser else []
+        except Exception as e:
+            print(f"         [SKIP] {name} failed: {e}")
+            entries = []   
 
         print(f"         → {len(entries)} items found")
         source_stats.append(f"    • {name}: {len(entries)}")
