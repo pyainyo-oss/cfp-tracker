@@ -3,7 +3,7 @@ name: Weekly CFP Check
 on:
   schedule:
     - cron: '0 2 * * 1'   # Monday 2:00 UTC = 8:30 AM Myanmar time
-  workflow_dispatch:       # Manual trigger available
+  workflow_dispatch:
 
 jobs:
   scrape:
@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload run log (if error occurs)
+      - name: Upload run log (for debugging)
         if: always()
         uses: actions/upload-artifact@v4
         with:
